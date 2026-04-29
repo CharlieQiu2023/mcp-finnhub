@@ -40,12 +40,16 @@ async def lifespan(app: FastMCP):
     """Manage server lifecycle - initialize and cleanup resources."""
     global _context
     config = load_config()
-    _context = ServerContext(config)
+    # Keep a local reference so the finally block closes *this* session's
+    # context even if a concurrent session has already overwritten _context.
+    ctx = ServerContext(config)
+    _context = ctx
     try:
         yield
     finally:
-        await _context.aclose()
-        _context = None
+        await ctx.aclose()
+        if _context is ctx:
+            _context = None
 
 
 # Initialize FastMCP server
